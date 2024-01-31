@@ -1,0 +1,56 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# Creates a local CA in $dir/ca (if one does not exist)
+#
+
+- hosts: localhost
+  vars:
+    root_ca_dir: "{{ playbook_dir }}/ca"
+
+  tasks:
+  - name: Check that Root CA directory {{ root_ca_dir }} exists
+    file:
+      path: "{{ root_ca_dir }}"
+      state: directory
+
+  - name: Copy the ca.conf file to CA
+    template:
+      src: ca.conf.tpl
+      dest: "{{ root_ca_dir }}/ca.conf"
+
+  - name: Generate an OpenSSH keypair for the CA
+    command:
+      chdir: "{{ root_ca_dir }}"
+      cmd: openssl genrsa -out {{ root_ca_dir }}/ca.key 2048
+      creates: "{{ root_ca_dir }}/ca.key"
+        
+  - name: Generate self-signed CA certificate
+    command:
+      chdir: "{{ root_ca_dir }}"
+      cmd: openssl req -new -x509 -config ca.conf -key ca.key -out ca.crt -days 365 -batch
+      creates: "{{ root_ca_dir }}/ca.crt"
+
+  - name: Create index file
+    file:
+      state: touch
+      path: "{{ root_ca_dir }}/index.txt"
+      mode: 0700
+    changed_when: False
+
+  - name: Write serial
+    shell:
+      cmd: echo 1000 > {{ root_ca_dir }}/serial.txt
+      creates: "{{ root_ca_dir }}/serial.txt"
