@@ -23,6 +23,8 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -64,6 +66,7 @@ public class KafkaBenchmarkConsumer implements BenchmarkConsumer {
         this.consumerTask =
                 this.executor.submit(
                         () -> {
+                            long lastOffsetNanos = System.nanoTime();
                             while (!closing) {
                                 try {
                                     ConsumerRecords<String, byte[]> records =
@@ -78,9 +81,16 @@ public class KafkaBenchmarkConsumer implements BenchmarkConsumer {
                                                 new OffsetAndMetadata(record.offset() + 1));
                                     }
 
-                                    if (!autoCommit && !offsetMap.isEmpty()) {
+                                    long now = System.nanoTime();
+                                    long timeSinceOffsetCommit = now - lastOffsetNanos;
+                                    if (!offsetMap.isEmpty()
+                                            && timeSinceOffsetCommit > TimeUnit.SECONDS.toNanos(5)) {
+                                        log.debug("msec since last offset commit: {}",
+                                                (now - lastOffsetNanos) / 1000 / 1000);
+                                        lastOffsetNanos = now;
                                         // Async commit all messages polled so far
                                         consumer.commitAsync(offsetMap, null);
+                                        offsetMap.clear();
                                     }
                                 } catch (Exception e) {
                                     log.error("exception occur while consuming message", e);
