@@ -41,7 +41,7 @@ import org.apache.kafka.common.errors.TopicExistsException;
 @Slf4j
 @RequiredArgsConstructor
 class KafkaTopicCreator {
-    private static final int MAX_BATCH_SIZE = 1;
+    private static final int MAX_BATCH_SIZE = 500;
     private static CreateTopicsOptions createTopicsOptions =
             new CreateTopicsOptions().retryOnQuotaViolation(true);
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
